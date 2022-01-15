@@ -1,0 +1,119 @@
+# sharding sphere
+spring:
+  shardingsphere:
+    datasource:
+      names: ds-order-master, ds-order-slave0, ds-order-slave1, ds-user-master0, ds-user-master1, ds-user-slave0
+
+      #订单
+      ds-order-master:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://39.106.209.136:3306/db_order_master?useSSL=false&useUnicode=true&characterEncoding=UTF-8
+        username: root
+        password: Zhaoxw2019@
+      ds-order-slave0:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://39.106.209.136:3306/db_order_slave0?useSSL=false&useUnicode=true&characterEncoding=UTF-8
+        username: root
+        password: Zhaoxw2019@
+      ds-order-slave1:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://39.106.209.136:3306/db_order_slave1?useSSL=false&useUnicode=true&characterEncoding=UTF-8
+        username: root
+        password: Zhaoxw2019@
+
+      #用户
+      ds-user-master0:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://39.106.209.136:3306/db_user_master0?useSSL=false&useUnicode=true&characterEncoding=UTF-8
+        username: root
+        password: Zhaoxw2019@
+      ds-user-master1:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://39.106.209.136:3306/db_user_master1?useSSL=false&useUnicode=true&characterEncoding=UTF-8
+        username: root
+        password: Zhaoxw2019@
+      ds-user-slave0:
+        type: com.alibaba.druid.pool.DruidDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        url: jdbc:mysql://39.106.209.136:3306/db_user_slave0?useSSL=false&useUnicode=true&characterEncoding=UTF-8
+        username: root
+        password: Zhaoxw2019@
+    sharding:
+      master-slave-rules:
+        order_ms:
+          load-balance-algorithm-type: round_robin
+          master-data-source-name: ds-order-master
+          slave-data-source-names: ds-order-slave0,ds-order-slave1
+        user_ms0:
+          load-balance-algorithm-type: round_robin
+          master-data-source-name: ds-user-master0
+          slave-data-source-names: ds-user-slave0
+        user_ms1:
+          load-balance-algorithm-type: round_robin
+          master-data-source-name: ds-user-master1
+          slave-data-source-names: ds-user-slave0
+      tables:
+        t_order:
+          actual-data-nodes: order_ms.t_order_$->{0..2}
+          database-strategy:
+            inline:
+              sharding-column: order_id
+              algorithm-expression: order_ms
+          table-strategy:
+            inline:
+              sharding-column: order_id
+              algorithm-expression: t_order_$->{order_id % 3}
+          key-generator:
+            column: id
+            type: SNOWFLAKE
+        t_order_item:
+          actual-data-nodes: order_ms.t_order_item_$->{0..2}
+          table-strategy:
+            inline:
+              sharding-column: order_id
+              algorithm-expression: t_order_item_$->{order_id % 3}
+          key-generator:
+            column: order_item_id
+            type: SNOWFLAKE
+        t_user:
+          actual-data-nodes: user_ms$->{0..1}.t_user_$->{0..2}
+          database-strategy:
+            inline:
+              sharding-column: user_id
+              algorithm-expression: user_ms$->{user_id % 2}
+          table-strategy:
+            inline:
+              sharding-column: user_id
+              algorithm-expression: t_user_$->{user_id % 3}
+          key-generator:
+            column: id
+            type: SNOWFLAKE
+      binding-tables: t_order, t_order_item
+#      default-data-source-name:  ds-order-master
+#      default-database-strategy:
+#        inline:
+#          sharding-column: user_id
+#          algorithm-expression: user_ms$->{user_id % 2}
+      encrypt-rule:
+        encryptors:
+          user_name_encryptor:
+            type: aes
+            props:
+              aes.key.value: 123456
+        tables:
+          t_user:
+            columns:
+              name:
+#                plainColumn: name
+                cipherColumn: name_encrypt
+                encryptor: user_name_encryptor
+    props:
+      sql:
+        show: true
+      query:
+       with.cipher.comlum: true
